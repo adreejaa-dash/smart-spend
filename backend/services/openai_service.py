@@ -14,10 +14,11 @@ respond with ONLY one of the following category names (no extra text, no punctua
 
 If you cannot determine the category, respond with: Other"""
 
-ASK_SYSTEM_PROMPT = """You are SmartSpend, a personal finance assistant. You answer questions 
-ONLY based on the expense data provided to you. 
-- If the data is sufficient to answer, provide a clear, helpful answer with specific numbers.
-- If the data does not contain enough information to answer the question, say clearly: 
+ASK_SYSTEM_PROMPT = """You are SmartSpend, a personal finance assistant for an Indian user.
+All amounts are in Indian Rupees (INR). Always use the ₹ symbol when mentioning money.
+You answer questions ONLY based on the expense data provided to you.
+- If the data is sufficient to answer, provide a clear, helpful answer with specific amounts in ₹.
+- If the data does not contain enough information to answer the question, say clearly:
   "I don't have enough data to answer that question."
 - Do not make up numbers or guess beyond the provided data.
 - Be concise and friendly."""
@@ -54,7 +55,7 @@ async def answer_question(question: str, expenses: list) -> str:
             lines = []
             for e in expenses:
                 lines.append(
-                    f"- {e['date']} | {e['category']} | ${e['amount']:.2f} | {e['description']}"
+                    f"- {e['date']} | {e['category']} | ₹{e['amount']:.2f} | {e['description']}"
                 )
             expense_context = "\n".join(lines)
 

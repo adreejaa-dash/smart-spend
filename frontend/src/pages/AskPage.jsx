@@ -7,6 +7,8 @@ const SUGGESTED_QUESTIONS = [
   'Which category am I spending the most on?',
   'How much did I spend on transport this year?',
   'What were my top 5 most expensive expenses?',
+  'How much did I spend on bills in June?',
+  'Show me my entertainment spending this month.',
 ];
 
 export default function AskPage() {

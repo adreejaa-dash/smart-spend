@@ -4,6 +4,9 @@ import { getExpenses, deleteExpense } from '../api/expenses';
 
 const CATEGORIES = ['All', 'Food', 'Transport', 'Bills', 'Shopping', 'Entertainment', 'Health', 'Other'];
 
+const formatINR = (value) =>
+  '₹' + Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function CategoryBadge({ cat }) {
   return <span className={`badge badge-${cat?.toLowerCase()}`}>{cat}</span>;
 }
@@ -131,7 +134,7 @@ export default function ExpensesPage() {
             <strong style={{ color: 'var(--text-primary)' }}>{expenses.length}</strong> expenses
           </span>
           <span style={{ color: 'var(--text-muted)' }}>
-            Total: <strong style={{ color: 'var(--accent-light)' }}>${totalAmount.toFixed(2)}</strong>
+            Total: <strong style={{ color: 'var(--accent-light)' }}>{formatINR(totalAmount)}</strong>
           </span>
         </div>
       )}
@@ -179,7 +182,7 @@ export default function ExpensesPage() {
                     <CategoryBadge cat={expense.category} />
                   </td>
                   <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--accent-light)', whiteSpace: 'nowrap' }}>
-                    ${expense.amount.toFixed(2)}
+                    {formatINR(expense.amount)}
                   </td>
                   <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>

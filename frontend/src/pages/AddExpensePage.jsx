@@ -123,7 +123,7 @@ export default function AddExpensePage() {
 
             {/* Amount */}
             <div className="form-group">
-              <label className="form-label">Amount ($)</label>
+              <label className="form-label">Amount (₹)</label>
               <input
                 id="amount"
                 name="amount"

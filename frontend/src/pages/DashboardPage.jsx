@@ -8,6 +8,17 @@ import { getExpenses } from '../api/expenses';
 
 const CHART_COLORS = ['#6366f1', '#a78bfa', '#22d3ee', '#10b981', '#f97316', '#ef4444', '#94a3b8'];
 
+/** Format a number as Indian Rupees: ₹1,20,000.00 */
+const formatINR = (value) =>
+  '₹' + Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Compact format for Y-axis ticks: ₹1.2L, ₹45K etc. */
+const formatINRCompact = (value) => {
+  if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+  if (value >= 1000)   return `₹${(value / 1000).toFixed(1)}K`;
+  return `₹${value}`;
+};
+
 const CATEGORY_COLORS = {
   Food: '#10b981',
   Transport: '#22d3ee',
@@ -44,7 +55,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       }}>
         <p style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{label || payload[0].name}</p>
         <p style={{ color: 'var(--accent-light)', fontWeight: 600 }}>
-          ${(payload[0].value ?? 0).toFixed(2)}
+          {formatINR(payload[0].value ?? 0)}
         </p>
       </div>
     );
@@ -125,14 +136,14 @@ export default function DashboardPage() {
 
       {/* Stat Cards */}
       <div className="grid-3" style={{ marginBottom: 28 }}>
-        <StatCard icon="💰" label="Total Spend (All Time)" value={`$${totalSpend.toFixed(2)}`} color="var(--accent-light)" />
-        <StatCard icon="📅" label="This Month" value={`$${thisMonthSpend.toFixed(2)}`} color="var(--cyan)" />
+        <StatCard icon="💰" label="Total Spend (All Time)" value={formatINR(totalSpend)} color="var(--accent-light)" />
+        <StatCard icon="📅" label="This Month" value={formatINR(thisMonthSpend)} color="var(--cyan)" />
         <StatCard icon="🏆" label="Top Category" value={topCategory} color="var(--green)" />
       </div>
 
       <div className="grid-2" style={{ marginBottom: 28 }}>
         <StatCard icon="🧾" label="Total Transactions" value={expenses.length} color="var(--violet)" />
-        <StatCard icon="📐" label="Avg per Transaction" value={`$${avgExpense.toFixed(2)}`} color="var(--orange)" />
+        <StatCard icon="📐" label="Avg per Transaction" value={formatINR(avgExpense)} color="var(--orange)" />
       </div>
 
       {/* Charts */}
@@ -204,8 +215,8 @@ export default function DashboardPage() {
                     tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v) => `$${v}`}
-                    width={55}
+                    tickFormatter={formatINRCompact}
+                    width={65}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Line
