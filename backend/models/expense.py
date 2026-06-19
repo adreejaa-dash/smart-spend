@@ -9,7 +9,7 @@ class Category(str, Enum):
     Transport = "Transport"
     Bills = "Bills"
     Shopping = "Shopping"
-    Entertainment = "Entertainment"
+    Entertainment = "Entertainment"   
     Health = "Health"
     Other = "Other"
 
