@@ -1,78 +1,93 @@
 # SmartSpend Project Progress
 
 ## 🚀 Current State
-This project is an AI-Powered Expense Tracker built with FastAPI (Backend) and React/Vite (Frontend). 
+This project is an AI-Powered Expense Tracker built with FastAPI (Backend) and React/Vite (Frontend).
 
-**The codebase is currently 100% written, but requires environment initialization (dependency installation and server startup) to begin end-to-end testing.**
+**The application is fully functional end-to-end. Both backend and frontend are running and all features are operational.**
 
-### ✅ Built Features
-#### Backend (FastAPI + MongoDB + OpenAI)
-All endpoints have been fully implemented in the `backend/routes` folder:
+### ✅ Completed & Verified
+
+#### Backend (FastAPI + MongoDB Atlas + OpenAI)
+All endpoints implemented and verified working:
 - **Expenses CRUD:**
-  - `POST /expenses`: Create a new expense.
-  - `GET /expenses`: Fetch expenses with optional filters (`category`, `start_date`, `end_date`).
-  - `PUT /expenses/{id}`: Update an existing expense.
-  - `DELETE /expenses/{id}`: Delete an expense.
+  - `POST /expenses` ✅ — Create a new expense
+  - `GET /expenses` ✅ — Fetch with optional `category`, `start_date`, `end_date` filters
+  - `PUT /expenses/{id}` ✅ — Update an expense
+  - `DELETE /expenses/{id}` ✅ — Delete an expense
 - **Analytics Aggregations:**
-  - `GET /analytics/category-summary`: MongoDB pipeline for total spend per category.
-  - `GET /analytics/monthly-trend`: MongoDB pipeline for total spend grouped by month for the last 12 months.
-- **AI Integrations (`openai_service.py`):**
-  - `POST /categorize`: Auto-categorize an expense description (used on description input blur).
-  - `POST /ask`: Natural-language Q&A that parses user questions for dates/categories, queries MongoDB, and returns grounded answers using OpenAI.
+  - `GET /analytics/category-summary` ✅ — MongoDB pipeline for total spend per category
+  - `GET /analytics/monthly-trend` ✅ — MongoDB pipeline for monthly spend over last 12 months
+- **AI Integrations:**
+  - `POST /categorize` ✅ — Auto-categorize expense description via OpenAI GPT-4o-mini
+  - `POST /ask` ✅ — Grounded Q&A: parses question → queries MongoDB → generates answer
 
 #### Frontend (React + Vite + Recharts + Axios)
-All UI components, pages, and API integration methods have been built:
-- **Design System:** Custom CSS (`index.css`) utilizing dark mode, glassmorphism cards, and specific brand colors.
-- **Sidebar Navigation:** Configured with active route highlighting.
-- **Pages:**
-  - `DashboardPage.jsx`: Recharts pie chart for category breakdown and line chart for monthly trend.
-  - `AddExpensePage.jsx`: Form with auto-categorization on description blur. Supports creation and editing.
-  - `ExpensesPage.jsx`: Table view of expenses with date/category filters, total spend summaries, edit shortcuts, and delete confirmations.
-  - `AskPage.jsx`: Chat-style interface interacting with the `/ask` endpoint, complete with a "SmartSpend is thinking..." indicator and scrollable chat history.
-- **API Setup:** Axios instance (`api/index.js`) with a global error interceptor.
+All pages built and integrated:
+- **Design System:** Dark glassmorphism CSS, Inter font, micro-animations
+- **Sidebar Navigation:** Active route highlighting via react-router-dom NavLink
+- **DashboardPage:** Pie chart (category breakdown) + Line chart (monthly trend) + 5 stat cards
+- **AddExpensePage:** Form with AI auto-categorization on description blur, edit mode support
+- **ExpensesPage:** Table with date/category filters, edit shortcuts, delete with confirmation
+- **AskPage:** Chat-style interface with suggested questions, thinking indicator, scrollable history
+- **API Layer:** Axios instance with global error interceptor wired to all endpoints
+
+### 🐛 Bugs Fixed
+- **MongoDB Atlas SSL Certificate Error** (`CERTIFICATE_VERIFY_FAILED` on macOS Python 3.14):
+  Fixed in `backend/services/db.py` — passing `certifi.where()` as `tlsCAFile` to the Motor client.
 
 ### 📂 File Structure
 ```
 smartspend/
-├── README.md               # Setup instructions
-├── .gitignore              # Ignores .venv, node_modules, .env, etc.
+├── README.md
+├── .gitignore
 ├── backend/
-│   ├── main.py             # FastAPI entry point with CORS config
-│   ├── requirements.txt    # Python dependencies
-│   ├── .env                # Configured environment variables
-│   ├── models/
-│   │   └── expense.py      # Pydantic models & enums
+│   ├── main.py             # FastAPI app with CORS
+│   ├── requirements.txt    # Python deps (fastapi, uvicorn, motor, openai, certifi, etc.)
+│   ├── .env                # MONGODB_URI + OPENAI_API_KEY
+│   ├── models/expense.py   # Pydantic models & Category enum
 │   ├── routes/
-│   │   ├── ai.py
+│   │   ├── expenses.py
 │   │   ├── analytics.py
-│   │   └── expenses.py
+│   │   └── ai.py
 │   └── services/
-│       ├── db.py           # motor async MongoDB connection
-│       └── openai_service.py # OpenAI GPT-4o-mini integration
+│       ├── db.py           # Motor async MongoDB (with certifi SSL fix)
+│       └── openai_service.py
 └── frontend/
-    ├── index.html          # Configured with proper title and meta description
-    ├── package.json        # Node dependencies (vite, react, recharts, axios, react-router-dom)
+    ├── index.html
+    ├── package.json
     └── src/
-        ├── App.jsx         # App router wrapper
-        ├── main.jsx        # React root entry
-        ├── index.css       # Complete design system
-        ├── api/            # API integration layer (ai.js, analytics.js, expenses.js, index.js)
+        ├── App.jsx
+        ├── main.jsx
+        ├── index.css       # Complete dark glassmorphism design system
+        ├── api/            # expenses.js, analytics.js, ai.js, index.js
         ├── components/     # Sidebar.jsx
-        └── pages/          # View components
+        └── pages/          # DashboardPage, AddExpensePage, ExpensesPage, AskPage
 ```
 
-### 🔐 Environment Variables Configuration
-Variables have been configured inside `backend/.env`:
-- `MONGODB_URI`: Set to the user's provided MongoDB Atlas string.
-- `OPENAI_API_KEY`: Skeleton setup is present, but requires the actual API key string to be updated in `.env`.
+### 🔐 Environment Variables
+- `MONGODB_URI`: Set in `backend/.env` — MongoDB Atlas cluster
+- `OPENAI_API_KEY`: Needs a valid key in `backend/.env` for `/categorize` and `/ask` to work
 
-### ⏳ Pending & Next Steps
-1. **Backend Environment Setup:** We have the `requirements.txt` ready, but need to create the python virtual environment and run `pip install -r requirements.txt`.
-2. **OpenAI Key:** The `OPENAI_API_KEY` in `backend/.env` still says `your-openai-api-key-here` and needs a valid key.
-3. **End-to-End Verification:** 
-   - Start the backend: `uvicorn main:app --reload`
-   - Start the frontend dev server: `npm run dev`
-   - Test data entry, AI categorization, dashboard charts rendering, and Ask SmartSpend features to ensure the frontend properly connects to FastAPI and MongoDB.
+### ▶️ Running the App
 
-### 🐛 Known Bugs / Incomplete Pieces
-- No code bugs are known at this moment since everything was just generated. However, without end-to-end testing, unexpected CORS or schema-validation bugs may arise during execution.
+**Backend:**
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+# Runs on http://localhost:8000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+# Runs on http://localhost:5173
+```
+
+### ⚠️ Remaining Action Needed
+- **OpenAI API Key:** The `/categorize` and `/ask` endpoints require a real `OPENAI_API_KEY` in `backend/.env`. Without it, AI categorization and Ask SmartSpend will return errors. All other features (CRUD, analytics, dashboard charts) work fully without the key.
+

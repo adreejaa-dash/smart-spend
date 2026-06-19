@@ -1,4 +1,5 @@
 import os
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
 from dotenv import load_dotenv
 
@@ -13,7 +14,7 @@ client: AsyncIOMotorClient = None
 def get_client() -> AsyncIOMotorClient:
     global client
     if client is None:
-        client = AsyncIOMotorClient(MONGODB_URI)
+        client = AsyncIOMotorClient(MONGODB_URI, tlsCAFile=certifi.where())
     return client
 
 
