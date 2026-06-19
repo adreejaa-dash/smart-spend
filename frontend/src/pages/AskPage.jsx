@@ -47,12 +47,13 @@ export default function AskPage() {
         },
       ]);
     } catch (err) {
-      setError(err.message || 'Failed to get an answer. Please try again.');
+      const errMsg = err.message || 'Failed to get an answer. Please try again.';
+      setError(errMsg);
       setMessages((prev) => [
         ...prev,
         {
           role: 'ai',
-          text: '⚠️ Sorry, I ran into an issue. Please check your backend connection and try again.',
+          text: `⚠️ ${errMsg}`,
           isError: true,
         },
       ]);

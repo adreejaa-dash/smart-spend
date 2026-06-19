@@ -31,6 +31,7 @@ export default function AddExpensePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [aiSuggested, setAiSuggested] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   useEffect(() => {
     if (editExpense) {
@@ -53,13 +54,22 @@ export default function AddExpensePage() {
 
   const handleDescriptionBlur = async () => {
     if (!form.description.trim() || form.description.trim().length < 3) return;
+    setAiError('');
     try {
       setCategorizing(true);
       const { category } = await categorize(form.description);
       setForm((prev) => ({ ...prev, category }));
       setAiSuggested(true);
-    } catch {
-      // fail silently — user can still pick category manually
+    } catch (err) {
+      // Non-blocking: user can still pick category manually
+      const msg = err.message || '';
+      if (msg.includes('quota') || msg.includes('Quota')) {
+        setAiError('AI quota exceeded — pick a category manually.');
+      } else if (msg.includes('API key') || msg.includes('auth')) {
+        setAiError('AI unavailable (key error) — pick a category manually.');
+      } else {
+        setAiError('AI unavailable — pick a category manually.');
+      }
     } finally {
       setCategorizing(false);
     }
@@ -156,6 +166,18 @@ export default function AddExpensePage() {
                 <div className="loading-text" style={{ marginTop: 6 }}>
                   <span className="spinner" style={{ color: 'var(--accent)' }} />
                   AI is suggesting a category…
+                </div>
+              )}
+              {aiError && !categorizing && (
+                <div style={{
+                  marginTop: 6,
+                  fontSize: '0.78rem',
+                  color: 'var(--orange)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}>
+                  ⚠️ {aiError}
                 </div>
               )}
             </div>

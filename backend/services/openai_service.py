@@ -1,15 +1,47 @@
+"""
+AI service using Google Gemini via the official google-genai SDK.
+Migrated from OpenAI gpt-4o-mini due to quota exhaustion.
+Preserves all existing function signatures and behavior.
+
+Setup: Get a free API key at https://aistudio.google.com/apikey
+       Add GEMINI_API_KEY=your-key to backend/.env
+"""
 import os
-from openai import AsyncOpenAI
+import asyncio
+from google import genai
+from google.genai import types
+from google.api_core.exceptions import (
+    ResourceExhausted,
+    Unauthenticated,
+    InvalidArgument,
+    ServiceUnavailable,
+    GoogleAPICallError,
+)
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+MODEL = "gemini-2.0-flash"
+
+# Initialise client (will fail gracefully if key is missing)
+_client = None
+
+def _get_client() -> genai.Client:
+    global _client
+    if _client is None:
+        if not GEMINI_API_KEY:
+            raise RuntimeError(
+                "GEMINI_API_KEY is not configured. "
+                "Get a free key at https://aistudio.google.com/apikey and add it to backend/.env"
+            )
+        _client = genai.Client(api_key=GEMINI_API_KEY)
+    return _client
+
 
 CATEGORIES = ["Food", "Transport", "Bills", "Shopping", "Entertainment", "Health", "Other"]
 
-CATEGORIZE_SYSTEM_PROMPT = f"""You are a smart expense categorizer. Given an expense description, 
-respond with ONLY one of the following category names (no extra text, no punctuation, no explanation):
+CATEGORIZE_PROMPT = f"""You are a smart expense categorizer for an Indian user. Given an expense description, respond with ONLY one of the following category names (no extra text, no punctuation, no explanation):
 {', '.join(CATEGORIES)}
 
 If you cannot determine the category, respond with: Other"""
@@ -24,55 +56,101 @@ You answer questions ONLY based on the expense data provided to you.
 - Be concise and friendly."""
 
 
-async def categorize_description(description: str) -> str:
-    """Send description to OpenAI and get back a single category."""
-    try:
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": CATEGORIZE_SYSTEM_PROMPT},
-                {"role": "user", "content": f"Expense description: {description}"},
-            ],
-            temperature=0.1,
-            max_tokens=20,
+def _classify_error(e: Exception) -> str:
+    """Map API exceptions to specific user-friendly messages."""
+    err_str = str(e).lower()
+
+    if isinstance(e, ResourceExhausted) or "quota" in err_str or "429" in err_str or "resource_exhausted" in err_str:
+        return "AI quota exceeded. The Gemini API free-tier rate limit was reached. Please wait a minute and try again."
+
+    if isinstance(e, Unauthenticated) or "api_key" in err_str or "401" in err_str or ("invalid" in err_str and "key" in err_str):
+        return "AI authentication failed. Please check that GEMINI_API_KEY is valid in backend/.env."
+
+    if isinstance(e, InvalidArgument) or "400" in err_str:
+        return "AI request was rejected as invalid. Please check your input."
+
+    if isinstance(e, ServiceUnavailable) or "503" in err_str or "unavailable" in err_str:
+        return "Gemini AI service is temporarily unavailable. Please try again shortly."
+
+    if "network" in err_str or "connection" in err_str or "timeout" in err_str:
+        return "Network error reaching Gemini. Check your internet connection and try again."
+
+    if not GEMINI_API_KEY:
+        return (
+            "GEMINI_API_KEY is not set. "
+            "Get a free key at https://aistudio.google.com/apikey and add it to backend/.env."
         )
-        category = response.choices[0].message.content.strip()
-        # Validate the returned category
-        if category not in CATEGORIES:
-            return "Other"
-        return category
+
+    return f"AI service error: {str(e)}"
+
+
+async def categorize_description(description: str) -> str:
+    """Categorize an expense description using Gemini. Returns one of the CATEGORIES strings."""
+    try:
+        client = _get_client()
+        prompt = f"{CATEGORIZE_PROMPT}\n\nExpense description: {description}"
+
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=20,
+            ),
+        )
+
+        raw = response.text.strip()
+        # Validate — only return a known category
+        for cat in CATEGORIES:
+            if cat.lower() == raw.lower():
+                return cat
+        return "Other"
+
+    except GoogleAPICallError as e:
+        raise RuntimeError(_classify_error(e))
+    except RuntimeError:
+        raise
     except Exception as e:
-        raise RuntimeError(f"OpenAI categorization failed: {str(e)}")
+        raise RuntimeError(_classify_error(e))
 
 
 async def answer_question(question: str, expenses: list) -> str:
-    """Answer a user question grounded in the provided expense data."""
+    """Answer a natural-language spending question grounded in actual expense records."""
     try:
+        client = _get_client()
+
         if not expenses:
             expense_context = "No expense data found for the relevant time period or category."
         else:
-            # Format expenses as compact text
-            lines = []
-            for e in expenses:
-                lines.append(
-                    f"- {e['date']} | {e['category']} | ₹{e['amount']:.2f} | {e['description']}"
-                )
+            lines = [
+                f"- {e['date']} | {e['category']} | ₹{e['amount']:.2f} | {e['description']}"
+                for e in expenses
+            ]
             expense_context = "\n".join(lines)
 
-        user_message = f"""User question: {question}
+        full_prompt = f"""{ASK_SYSTEM_PROMPT}
+
+User question: {question}
 
 Expense data:
 {expense_context}"""
 
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": ASK_SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
-            temperature=0.3,
-            max_tokens=500,
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model=MODEL,
+            contents=full_prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=600,
+            ),
         )
-        return response.choices[0].message.content.strip()
+
+        return response.text.strip()
+
+    except GoogleAPICallError as e:
+        raise RuntimeError(_classify_error(e))
+    except RuntimeError:
+        raise
     except Exception as e:
-        raise RuntimeError(f"OpenAI Q&A failed: {str(e)}")
+        raise RuntimeError(_classify_error(e))
