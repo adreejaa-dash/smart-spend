@@ -7,7 +7,7 @@ A full-stack personal finance app with AI-powered expense categorization and nat
 ## Project Structure
 
 ```
-smartspend/
+smartspend/  
 ├── backend/        FastAPI + MongoDB + OpenAI
 └── frontend/       React (Vite) + Recharts
 ```
