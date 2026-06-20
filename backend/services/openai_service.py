@@ -22,10 +22,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-MODEL = "gemini-2.0-flash"
+MODEL = "gemini-2.5-flash"
 
-# Initialise client (will fail gracefully if key is missing)
+# Lazy-initialised client
 _client = None
+
 
 def _get_client() -> genai.Client:
     global _client
@@ -54,6 +55,32 @@ You answer questions ONLY based on the expense data provided to you.
   "I don't have enough data to answer that question."
 - Do not make up numbers or guess beyond the provided data.
 - Be concise and friendly."""
+
+
+def _extract_text(response) -> str:
+    """
+    Safely extract text from a Gemini response.
+    gemini-2.5-flash uses thinking tokens; response.text can be None
+    when the response parts include thought parts before the text part.
+    """
+    # Preferred: direct .text property
+    if response.text is not None:
+        return response.text.strip()
+
+    # Fallback: walk candidates -> parts, skip thought parts
+    try:
+        for candidate in response.candidates:
+            parts = candidate.content.parts or []
+            text_parts = [
+                p.text for p in parts
+                if hasattr(p, "text") and p.text and not getattr(p, "thought", False)
+            ]
+            if text_parts:
+                return " ".join(text_parts).strip()
+    except Exception:
+        pass
+
+    return ""
 
 
 def _classify_error(e: Exception) -> str:
@@ -97,10 +124,15 @@ async def categorize_description(description: str) -> str:
             config=types.GenerateContentConfig(
                 temperature=0.1,
                 max_output_tokens=20,
+                # Disable thinking mode for fast single-token categorization
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
 
-        raw = response.text.strip()
+        raw = _extract_text(response)
+        if not raw:
+            return "Other"
+
         # Validate — only return a known category
         for cat in CATEGORIES:
             if cat.lower() == raw.lower():
@@ -146,7 +178,8 @@ Expense data:
             ),
         )
 
-        return response.text.strip()
+        text = _extract_text(response)
+        return text if text else "I was unable to generate an answer. Please try again."
 
     except GoogleAPICallError as e:
         raise RuntimeError(_classify_error(e))
