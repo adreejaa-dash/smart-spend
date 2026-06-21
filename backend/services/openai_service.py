@@ -10,13 +10,7 @@ import os
 import asyncio
 from google import genai
 from google.genai import types
-from google.api_core.exceptions import (
-    ResourceExhausted,
-    Unauthenticated,
-    InvalidArgument,
-    ServiceUnavailable,
-    GoogleAPICallError,
-)
+from google.genai.errors import APIError, ClientError, ServerError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -63,7 +57,6 @@ def _extract_text(response) -> str:
     gemini-2.5-flash uses thinking tokens; response.text can be None
     when the response parts include thought parts before the text part.
     """
-    # Preferred: direct .text property
     if response.text is not None:
         return response.text.strip()
 
@@ -84,21 +77,31 @@ def _extract_text(response) -> str:
 
 
 def _classify_error(e: Exception) -> str:
-    """Map API exceptions to specific user-friendly messages."""
+    """
+    Map google.genai exceptions to specific user-friendly messages.
+    Uses only google.genai.errors — no google.api_core dependency.
+    """
+    code = getattr(e, "code", None)
+    status = (getattr(e, "status", None) or "").upper()
     err_str = str(e).lower()
 
-    if isinstance(e, ResourceExhausted) or "quota" in err_str or "429" in err_str or "resource_exhausted" in err_str:
+    # 429 / RESOURCE_EXHAUSTED
+    if code == 429 or "resource_exhausted" in status or "quota" in err_str:
         return "AI quota exceeded. The Gemini API free-tier rate limit was reached. Please wait a minute and try again."
 
-    if isinstance(e, Unauthenticated) or "api_key" in err_str or "401" in err_str or ("invalid" in err_str and "key" in err_str):
+    # 401 / UNAUTHENTICATED
+    if code == 401 or "unauthenticated" in status or ("invalid" in err_str and "key" in err_str):
         return "AI authentication failed. Please check that GEMINI_API_KEY is valid in backend/.env."
 
-    if isinstance(e, InvalidArgument) or "400" in err_str:
+    # 400 / INVALID_ARGUMENT
+    if code == 400 or "invalid_argument" in status:
         return "AI request was rejected as invalid. Please check your input."
 
-    if isinstance(e, ServiceUnavailable) or "503" in err_str or "unavailable" in err_str:
+    # 503 / UNAVAILABLE
+    if code == 503 or "unavailable" in status:
         return "Gemini AI service is temporarily unavailable. Please try again shortly."
 
+    # Network / connection errors (not from the API)
     if "network" in err_str or "connection" in err_str or "timeout" in err_str:
         return "Network error reaching Gemini. Check your internet connection and try again."
 
@@ -139,7 +142,7 @@ async def categorize_description(description: str) -> str:
                 return cat
         return "Other"
 
-    except GoogleAPICallError as e:
+    except (APIError, ClientError, ServerError) as e:
         raise RuntimeError(_classify_error(e))
     except RuntimeError:
         raise
@@ -181,7 +184,7 @@ Expense data:
         text = _extract_text(response)
         return text if text else "I was unable to generate an answer. Please try again."
 
-    except GoogleAPICallError as e:
+    except (APIError, ClientError, ServerError) as e:
         raise RuntimeError(_classify_error(e))
     except RuntimeError:
         raise
