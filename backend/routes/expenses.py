@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 
 from models.expense import ExpenseCreate, ExpenseUpdate
@@ -11,13 +11,21 @@ router = APIRouter()
 
 def expense_serializer(expense: dict) -> dict:
     """Convert MongoDB document to JSON-serializable dict."""
+    created_at = expense.get("createdAt", None)
+    if isinstance(created_at, datetime):
+        created_at_str = created_at.isoformat()
+    elif isinstance(created_at, str):
+        created_at_str = created_at
+    else:
+        created_at_str = datetime.now(timezone.utc).isoformat()
+
     return {
         "id": str(expense["_id"]),
         "amount": expense["amount"],
         "category": expense["category"],
         "description": expense["description"],
         "date": expense["date"],
-        "createdAt": expense.get("createdAt", datetime.utcnow()).isoformat(),
+        "createdAt": created_at_str,
     }
 
 
@@ -26,7 +34,7 @@ async def create_expense(expense: ExpenseCreate):
     try:
         collection = get_db()
         doc = expense.model_dump()
-        doc["createdAt"] = datetime.utcnow()
+        doc["createdAt"] = datetime.now(timezone.utc)
         result = await collection.insert_one(doc)
         created = await collection.find_one({"_id": result.inserted_id})
         return expense_serializer(created)
